@@ -1,4 +1,3 @@
-import sys
 from lxml.etree import Element, XMLParser, tostring
 
 
@@ -131,16 +130,7 @@ def iterparse(stream, tag, size=1024, **kwargs):
     while raw:
         try:
             parser.feed(raw)
-        except:
-            # Preserve exception as yield cause standard re-raising to fail.
-            # http://www.ianbicking.org/blog/2007/09/re-raising-exceptions.html
-            exc_class, exc, tb = sys.exc_info()
-
-            for action in target.actions():
-                yield action
-
-            raise exc_class, exc, tb
-        else:
+        finally:
             for action in target.actions():
                 yield action
 
