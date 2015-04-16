@@ -40,11 +40,11 @@ class Iterparse(unittest.TestCase):
             """
         )
 
-        elements = list(iterparse(stream, tag=['wanted']))
+        events = list(iterparse(stream, tag=['wanted'], debug=True))
+        self.assertEqual(len(events), 1)
 
-        self.assertEqual(len(elements), 1)
-
-        element = elements[0]
+        action, element = events[0]
+        self.assertEqual(action, 'end')
         self.assertElement(element, 'wanted', num_children=5)
         self.assertElement(element[0], 'wanted-0', text='foo', num_attrib=1)
         self.assertElement(element[1], 'wanted-1', text='foo')
@@ -58,39 +58,40 @@ class Iterparse(unittest.TestCase):
     def test_exception_handling(self):
         stream = BytesIO(b'<a>1</a>2</a>3')
 
-        elements = iterparse(stream, tag=['a'], debug=True)
+        events = iterparse(stream, tag=['a'], debug=True)
 
         # We can process the first <a> without issue.
-        element = next(elements)
+        action, element = next(events)
+        self.assertEqual(action, 'end')
         self.assertElement(element, 'a', text='1')
 
         # Processing the second <a> should fail.
         with self.assertRaises(XMLSyntaxError):
-            next(elements)
+            next(events)
 
     def test_error_extra_content(self):
         stream = BytesIO(b'<a><b></a></b>')
 
-        elements = iterparse(stream, tag=['a'])
+        events = iterparse(stream, tag=['a'])
 
         with self.assertRaises(XMLSyntaxError):
-            next(elements)
+            next(events)
 
     def test_error_opening_ending_mismatch(self):
         stream = BytesIO(b'</a>')
 
-        elements = iterparse(stream, tag=['a'])
+        events = iterparse(stream, tag=['a'])
 
         with self.assertRaises(XMLSyntaxError):
-            next(elements)
+            next(events)
 
     def test_error_document_is_empty(self):
         stream = BytesIO(b'0<a></a>')
 
-        elements = iterparse(stream, tag=['a'])
+        events = iterparse(stream, tag=['a'])
 
         with self.assertRaises(XMLSyntaxError):
-            next(elements)
+            next(events)
 
     def test_return_order(self):
         stream = BytesIO(
@@ -103,14 +104,15 @@ class Iterparse(unittest.TestCase):
             """
         )
 
-        elements = list(iterparse(stream, tag=['wanted', 'wanted-0']))
+        events = list(iterparse(stream, tag=['wanted', 'wanted-0']))
+        self.assertEqual(len(events), 2)
 
-        self.assertEqual(len(elements), 2)
-
-        element = elements[0]
+        action, element = events[0]
+        self.assertEqual(action, 'end')
         self.assertElement(element, 'wanted-0', text='foo')
 
-        element = elements[1]
+        action, element = events[1]
+        self.assertEqual(action, 'end')
         self.assertElement(element, 'wanted', num_children=1)
         self.assertElement(element[0], 'wanted-0', text='foo')
 
@@ -123,43 +125,48 @@ class Iterparse(unittest.TestCase):
             """
 
         # Make sure we can filter with namespaces.
-        elements = list(iterparse(BytesIO(text), tag=['{example.com/a1}a']))
+        events = list(iterparse(BytesIO(text), tag=['{example.com/a1}a']))
+        elements = [element for action, element in events]
 
         self.assertEquals(len(elements), 1)
         self.assertElement(elements[0], '{example.com/a1}a', text='1')
 
-        elements = list(iterparse(BytesIO(text), tag=['{example.com/a2}a']))
+        events = list(iterparse(BytesIO(text), tag=['{example.com/a2}a']))
+        elements = [element for action, element in events]
 
         self.assertEquals(len(elements), 1)
         self.assertElement(elements[0], '{example.com/a2}a', text='2')
 
         # Make sure that we can filter while ignoring namespaces.
-        elements = list(
+        events = list(
             iterparse(BytesIO(text), tag=['a'], ignore_namespace=True)
         )
+        elements = [element for action, element in events]
 
         self.assertEquals(len(elements), 2)
         self.assertElement(elements[0], '{example.com/a1}a', text='1')
         self.assertElement(elements[1], '{example.com/a2}a', text='2')
 
         # Make sure we can filter with namespaces and strip the result.
-        elements = list(
+        events = list(
             iterparse(
                 BytesIO(text), tag=['{example.com/a1}a'],
                 strip_namespace=True,
             )
         )
+        elements = [element for action, element in events]
 
         self.assertEquals(len(elements), 1)
         self.assertElement(elements[0], 'a', text='1')
 
         # Combination of ignoring/striping namespaces.
-        elements = list(
+        events = list(
             iterparse(
                 BytesIO(text), tag=['a'], strip_namespace=True,
                 ignore_namespace=True,
             )
         )
+        elements = [element for action, element in events]
 
         self.assertEquals(len(elements), 2)
         self.assertElement(elements[0], 'a', text='1')
@@ -168,10 +175,28 @@ class Iterparse(unittest.TestCase):
     def test_tag_none(self):
         stream = BytesIO(b'<a>1</a>')
 
-        elements = list(iterparse(stream, tag=None))
+        events = list(iterparse(stream, tag=None))
+        self.assertEqual(len(events), 1)
 
-        self.assertEquals(len(elements), 1)
-        self.assertElement(elements[0], 'a', text='1')
+        action, element = events[0]
+        self.assertEqual(action, 'end')
+        self.assertElement(element, 'a', text='1')
+
+    def test_start_and_end_events(self):
+        stream = BytesIO(b'<a>1</a>')
+
+        events = list(iterparse(stream, tag=None, events=['start', 'end']))
+        self.assertEqual(len(events), 2)
+
+        # Note: elements at the time of the start event can only guarenttee
+        # that the tag name and its attributes will exist.
+        action, element = events[0]
+        self.assertEqual(action, 'start')
+        self.assertEqual(element.tag, 'a')
+
+        action, element = events[1]
+        self.assertEqual(action, 'end')
+        self.assertElement(element, 'a', text='1')
 
 
 if __name__ == '__main__':

@@ -11,9 +11,12 @@ class MinimalTarget(object):
     tags: The names of tags you would like to store
     """
     def __init__(
-        self, tags=None, strip_namespace=False, ignore_namespace=False,
-        debug=False,
+        self, events=('end',), tags=None, strip_namespace=False,
+        ignore_namespace=False, debug=False,
     ):
+        self._on_start = 'start' in events
+        self._on_end = 'end' in events
+
         if tags is None:
             self._tags = tags
         else:
@@ -27,7 +30,7 @@ class MinimalTarget(object):
         self._text = []
 
         self._tree = None  # Debug only.
-        self.completed_elements = []
+        self.completed_events = []
 
         self._keep_text = False
 
@@ -65,6 +68,9 @@ class MinimalTarget(object):
             if parent is not None:
                 parent.append(element)
 
+            if self._on_start and self._is_desired_tag(tag):
+                self.completed_events.append(('start', element))
+
             self._element = element
             self._keep_text = True
 
@@ -90,8 +96,8 @@ class MinimalTarget(object):
                 self._element.text = ''.join(self._text)
                 self._text = []  # Probably not needed
 
-            if self._is_desired_tag(tag):
-                self.completed_elements.append(self._element)
+            if self._on_end and self._is_desired_tag(tag):
+                self.completed_events.append(('end', self._element))
                 self._tree = None
 
             self._element = self._element.getparent()
@@ -160,7 +166,7 @@ def iterparse(source, events=('end',), tag=None, **kwargs):
         debug=kwargs.pop('debug', False),
     )
 
-    target = MinimalTarget(tags=tag, **target_kwargs)
+    target = MinimalTarget(events=events, tags=tag, **target_kwargs)
     parser = XMLParser(target=target, **kwargs)
 
     raw = source.read(size)
@@ -171,8 +177,8 @@ def iterparse(source, events=('end',), tag=None, **kwargs):
         finally:
             # Note: When exceptions are raised within the parser the
             # target's close method will be called.
-            elements = target.completed_elements
-            while elements:
-                yield elements.pop(0)
+            events = target.completed_events
+            while events:
+                yield events.pop(0)
 
         raw = source.read(size)
