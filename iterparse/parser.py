@@ -14,7 +14,7 @@ class LowMemoryTarget(object):
         self.parent = None
 
         self.tree = None  # Debug only.
-        self.complete = []
+        self.completed_elements = []
 
         self.text = []
 
@@ -76,7 +76,7 @@ class LowMemoryTarget(object):
             self.parent = self.element.getparent()
 
         if self.parent is None:
-            self.complete.append(self.element)
+            self.completed_elements.append(self.element)
             self.element = None
             self.tree = None
 
@@ -106,16 +106,9 @@ class LowMemoryTarget(object):
         """
         Close the parser
         """
-        # self._complete = []
-        # self._tree = []
+        # Note: Avoid clearing completed_elements here as it will
+        # cause graceful exception handling to fail.
         pass
-
-    def actions(self):
-        """
-        Get all the completed elements
-        """
-        while self.complete:
-            yield self.complete.pop(0)
 
 
 def iterparse(stream, tag, size=1024, **kwargs):
@@ -131,7 +124,8 @@ def iterparse(stream, tag, size=1024, **kwargs):
         try:
             parser.feed(raw)
         finally:
-            for action in target.actions():
-                yield action
+            elements = target.completed_elements
+            while elements:
+                yield elements.pop(0)
 
         raw = stream.read(size)
