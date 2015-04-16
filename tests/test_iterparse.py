@@ -138,6 +138,14 @@ class Iterparse(unittest.TestCase):
         self.assertEquals(a_a[1].tag, '{example.com/a2}a')
         self.assertEquals(a_a[1].text, 'a2')
 
+        a = list(iterparse(BytesIO(text), tag=['a'], strip_namespace=True))
+
+        self.assertEquals(len(a_a), 2)
+        self.assertEquals(a[0].tag, 'a')
+        self.assertEquals(a[0].text, 'a1')
+        self.assertEquals(a[1].tag, 'a')
+        self.assertEquals(a[1].text, 'a2')
+
 
 if __name__ == '__main__':
     unittest.main()

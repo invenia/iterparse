@@ -57,12 +57,14 @@ class MinimalTarget(object):
 
     tags: The names of tags you would like to store
     """
-    def __init__(self, tags, debug=False):
+    def __init__(self, tags, strip_namespace=False, debug=False):
         self._tags = frozenset(Tag(tag) for tag in tags)
         self._debug = debug
 
         self._element = None
         self._text = []
+
+        self._strip = strip_namespace
 
         self._tree = None  # Debug only.
         self.completed_elements = []
@@ -98,6 +100,10 @@ class MinimalTarget(object):
 
         if save_element:
             parent = self._element
+
+            if self._strip:
+                tag = Tag(tag).name
+
             element = Element(tag, attrib)
 
             if parent is not None:
@@ -166,7 +172,8 @@ class MinimalTarget(object):
         pass
 
 
-def iterparse(source, events=('end',), tag=None, **kwargs):
+def iterparse(source, events=('end',), tag=None, strip_namespace=False,
+              **kwargs):
     """
     Iteratively parse an xml file, firing end events for any requested
     tags
@@ -181,11 +188,11 @@ def iterparse(source, events=('end',), tag=None, **kwargs):
     #
     # http://lxml.de/api/lxml.etree.XMLParser-class.html
     # http://lxml.de/api/lxml.etree.iterparse-class.html
-
     size = kwargs.pop('size', 1024)
     debug = kwargs.pop('debug', False)
 
-    target = MinimalTarget(tags=tag, debug=debug)
+    target = MinimalTarget(tags=tag, strip_namespace=strip_namespace,
+                           debug=debug)
     parser = XMLParser(target=target, **kwargs)
 
     raw = source.read(size)
