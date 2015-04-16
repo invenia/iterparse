@@ -1,3 +1,4 @@
+import sys
 from lxml.etree import Element, XMLParser, tostring
 
 
@@ -118,19 +119,29 @@ class LowMemoryTarget(object):
             yield self.complete.pop(0)
 
 
-def iterparse(stream, tag, size=1024):
+def iterparse(stream, tag, size=1024, **kwargs):
     """
     Iterativel parse an xml file
     """
-    target = LowMemoryTarget(tag)
+    target = LowMemoryTarget(tag, **kwargs)
     parser = XMLParser(target=target)
 
     raw = stream.read(size)
 
     while raw:
-        parser.feed(raw)
+        try:
+            parser.feed(raw)
+        except:
+            # Preserve exception as yield cause standard re-raising to fail.
+            # http://www.ianbicking.org/blog/2007/09/re-raising-exceptions.html
+            exc_class, exc, tb = sys.exc_info()
 
-        for action in target.actions():
-            yield action
+            for action in target.actions():
+                yield action
+
+            raise exc_class, exc, tb
+        else:
+            for action in target.actions():
+                yield action
 
         raw = stream.read(size)

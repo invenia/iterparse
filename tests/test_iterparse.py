@@ -1,6 +1,7 @@
 import unittest
 from six import StringIO
 from iterparse.parser import iterparse
+from lxml.etree import XMLSyntaxError
 
 
 class Iterparse(unittest.TestCase):
@@ -51,6 +52,43 @@ class Iterparse(unittest.TestCase):
         self.assertElement(element[3][0][0], 'wanted-3aa', text='deep')
         self.assertElement(element[3][1], 'wanted-3b', text='sup')
         self.assertElement(element[4], 'wanted-4')
+
+    def test_exception_handling(self):
+        stream = StringIO('<a>1</a>2</a>3')
+
+        elements = iterparse(stream, ['a'], debug=True)
+
+        # We can process the first <a> without issue.
+        element = next(elements)
+        self.assertElement(element, 'a', text='1')
+
+        # Processing the second <a> should fail.
+        with self.assertRaises(XMLSyntaxError):
+            next(elements)
+
+    def test_error_extra_content(self):
+        stream = StringIO('<a><b></a></b>')
+
+        elements = iterparse(stream, ['a'])
+
+        with self.assertRaises(XMLSyntaxError):
+            next(elements)
+
+    def test_error_opening_ending_mismatch(self):
+        stream = StringIO('</a>')
+
+        elements = iterparse(stream, ['a'])
+
+        with self.assertRaises(XMLSyntaxError):
+            next(elements)
+
+    def test_error_document_is_empty(self):
+        stream = StringIO('0<a></a>')
+
+        elements = iterparse(stream, ['a'])
+
+        with self.assertRaises(XMLSyntaxError):
+            next(elements)
 
 
 if __name__ == '__main__':
