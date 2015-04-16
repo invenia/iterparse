@@ -119,6 +119,8 @@ def iterparse(stream, tag, size=1024, **kwargs):
         try:
             parser.feed(raw)
         finally:
+            # Note: When exceptions are raised within the parser the
+            # target's close method will be called.
             elements = target.completed_elements
             while elements:
                 yield elements.pop(0)

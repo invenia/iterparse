@@ -90,6 +90,26 @@ class Iterparse(unittest.TestCase):
         with self.assertRaises(XMLSyntaxError):
             next(elements)
 
+    def test_return_order(self):
+        stream = StringIO("""
+        <root>
+            <wanted>
+                <wanted-0>foo</wanted-0>
+            </wanted>
+        </root>
+        """)
+
+        elements = list(iterparse(stream, ['wanted', 'wanted-0']))
+
+        self.assertEqual(len(elements), 2)
+
+        element = elements[0]
+        self.assertElement(element, 'wanted-0', text='foo')
+
+        element = elements[1]
+        self.assertElement(element, 'wanted', num_children=1)
+        self.assertElement(element[0], 'wanted-0', text='foo')
+
 
 if __name__ == '__main__':
     unittest.main()
