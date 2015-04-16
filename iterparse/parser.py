@@ -1,4 +1,52 @@
+from __future__ import print_function
+
+import re
+
 from lxml.etree import Element, XMLParser, tostring
+from six import text_type
+
+
+class Tag(object):
+    """
+    An XML tag
+    """
+    def __init__(self, raw):
+        self._namespace, self._name = re.search(
+            '^(:?\{([^{}]+)\})?([^{}]+)$', raw
+        ).groups()[1:]
+
+    @property
+    def namespace(self):
+        return self._namespace
+
+    @property
+    def name(self):
+        return self._name
+
+    def __eq__(self, other):
+        if isinstance(other, text_type):
+            other = Tag(other)
+
+        if isinstance(other, Tag):
+            return self.name == other.name and (
+                (not self.namespace) or
+                (not other.namespace) or
+                self.namespace == other.namespace
+            )
+
+        return NotImplemented
+
+    def __ne__(self, other):
+        if isinstance(other, (text_type, Tag)):
+            return not (self == other)
+
+        return NotImplemented
+
+    def __repr__(self):
+        return 'Tag({%s}%s)' % (self._namespace or '', self._name)
+
+    def __hash__(self):
+        return hash((self._namespace, self._name))
 
 
 class MinimalTarget(object):
@@ -10,7 +58,7 @@ class MinimalTarget(object):
     tags: The names of tags you would like to store
     """
     def __init__(self, tags, debug=False):
-        self._tags = frozenset(tags)
+        self._tags = frozenset(Tag(tag) for tag in tags)
         self._debug = debug
 
         self._element = None
@@ -43,7 +91,12 @@ class MinimalTarget(object):
 
         # Save elements are tags we are interested in or which are
         # decendents of interesting tags.
-        if self._element is not None or tag in self._tags:
+        save_element = self._element is not None
+
+        if not save_element:
+            save_element = self._desired_tag(tag)
+
+        if save_element:
             parent = self._element
             element = Element(tag, attrib)
 
@@ -72,7 +125,7 @@ class MinimalTarget(object):
                 self._element.text = ''.join(self._text)
                 self._text = []  # Probably not needed
 
-            if tag in self._tags:
+            if self._desired_tag(tag):
                 self.completed_elements.append(self._element)
                 self._tree = None
 
@@ -84,6 +137,18 @@ class MinimalTarget(object):
         # Avoid saving text that occurs after the end of a tag.
         # eg. <a><b>text</b>garbage</a>
         self._keep_text = False
+
+    def _desired_tag(self, tag):
+        """
+        Test whether a tag is desired
+        """
+        wrapped = Tag(tag)
+
+        for desired in self._tags:
+            if wrapped == desired:
+                return True
+
+        return False
 
     def data(self, text):
         """

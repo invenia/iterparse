@@ -110,6 +110,34 @@ class Iterparse(unittest.TestCase):
         self.assertElement(element, 'wanted', num_children=1)
         self.assertElement(element[0], 'wanted-0', text='foo')
 
+    def test_namespacing(self):
+        text = (
+            b'<root xmlns:a1="example.com/a1" xmlns:a2="example.com/a2">'
+            b'<a1:a>a1</a1:a>'
+            b'<a2:a>a2</a2:a>'
+            b'</root>'
+        )
+
+        a1_a = list(iterparse(BytesIO(text), tag=['{example.com/a1}a']))
+
+        self.assertEquals(len(a1_a), 1)
+        self.assertEquals(a1_a[0].tag, '{example.com/a1}a')
+        self.assertEquals(a1_a[0].text, 'a1')
+
+        a2_a = list(iterparse(BytesIO(text), tag=['{example.com/a2}a']))
+
+        self.assertEquals(len(a2_a), 1)
+        self.assertEquals(a2_a[0].tag, '{example.com/a2}a')
+        self.assertEquals(a2_a[0].text, 'a2')
+
+        a_a = list(iterparse(BytesIO(text), tag=['a']))
+
+        self.assertEquals(len(a_a), 2)
+        self.assertEquals(a_a[0].tag, '{example.com/a1}a')
+        self.assertEquals(a_a[0].text, 'a1')
+        self.assertEquals(a_a[1].tag, '{example.com/a2}a')
+        self.assertEquals(a_a[1].text, 'a2')
+
 
 if __name__ == '__main__':
     unittest.main()
