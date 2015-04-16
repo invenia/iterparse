@@ -1,5 +1,5 @@
 import unittest
-from six import StringIO
+from six import BytesIO
 from iterparse.parser import iterparse
 from lxml.etree import XMLSyntaxError
 
@@ -15,7 +15,7 @@ class Iterparse(unittest.TestCase):
         self.assertEqual(len(element.attrib), num_attrib)
 
     def test_basic(self):
-        stream = StringIO("""
+        stream = BytesIO(b"""
         <root>
             <unwanted>
                 <unwanted-0>foo</unwanted-0>
@@ -54,7 +54,7 @@ class Iterparse(unittest.TestCase):
         self.assertElement(element[4], 'wanted-4')
 
     def test_exception_handling(self):
-        stream = StringIO('<a>1</a>2</a>3')
+        stream = BytesIO(b'<a>1</a>2</a>3')
 
         elements = iterparse(stream, ['a'], debug=True)
 
@@ -67,7 +67,7 @@ class Iterparse(unittest.TestCase):
             next(elements)
 
     def test_error_extra_content(self):
-        stream = StringIO('<a><b></a></b>')
+        stream = BytesIO(b'<a><b></a></b>')
 
         elements = iterparse(stream, ['a'])
 
@@ -75,7 +75,7 @@ class Iterparse(unittest.TestCase):
             next(elements)
 
     def test_error_opening_ending_mismatch(self):
-        stream = StringIO('</a>')
+        stream = BytesIO(b'</a>')
 
         elements = iterparse(stream, ['a'])
 
@@ -83,7 +83,7 @@ class Iterparse(unittest.TestCase):
             next(elements)
 
     def test_error_document_is_empty(self):
-        stream = StringIO('0<a></a>')
+        stream = BytesIO(b'0<a></a>')
 
         elements = iterparse(stream, ['a'])
 
@@ -91,7 +91,7 @@ class Iterparse(unittest.TestCase):
             next(elements)
 
     def test_return_order(self):
-        stream = StringIO("""
+        stream = BytesIO(b"""
         <root>
             <wanted>
                 <wanted-0>foo</wanted-0>

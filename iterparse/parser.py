@@ -35,7 +35,7 @@ class MinimalTarget(object):
         TODO: Handling of namespaces?
         """
         if self._debug:
-            print 'START', tag
+            print('START', tag)
 
         # Throw away any text that occurred within an element containing
         # a child. eg. <a>garbage<b>text</b></a>
@@ -58,14 +58,14 @@ class MinimalTarget(object):
                 self._tree = self._element
 
             if self._tree is not None:
-                print tostring(self._tree, pretty_print=True)
+                print(tostring(self._tree, pretty_print=True))
 
     def end(self, tag):
         """
         Close a tag
         """
         if self._debug:
-            print 'END', tag
+            print('END', tag)
 
         if self._element is not None:
             if self._text:
@@ -79,7 +79,7 @@ class MinimalTarget(object):
             self._element = self._element.getparent()
 
         if self._debug and self._tree is not None and self._text:
-            print tostring(self._tree, pretty_print=True)
+            print(tostring(self._tree, pretty_print=True))
 
         # Avoid saving text that occurs after the end of a tag.
         # eg. <a><b>text</b>garbage</a>
