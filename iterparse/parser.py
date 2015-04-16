@@ -1,106 +1,96 @@
 from lxml.etree import Element, XMLParser, tostring
 
 
-class LowMemoryTarget(object):
+class MinimalTarget(object):
     """
-    An XMLParser target that only stores the data you want,
-    when you want it.
+    A minimal XMLParser target that only stores the data you want. It
+    does not support every XML feature (by design) but (should) support
+    everything you need.
+
+    tags: The names of tags you would like to store
     """
     def __init__(self, tags, debug=False):
         self._tags = frozenset(tags)
         self._debug = debug
 
-        self.element = None
-        self.parent = None
+        self._element = None
+        self._text = []
 
-        self.tree = None  # Debug only.
+        self._tree = None  # Debug only.
         self.completed_elements = []
 
-        self.text = []
-
-        self.last_tag_event = None
+        self._keep_text = False
 
     def start(self, tag, attrib):
         """
-        The starting tag.
+        Tag starting event.
+
+        tag: The name of the tag being started.
+        attrib: The attribute dictionary for the tag.
+
+        tag: The name of the tag being started.
+        attrib: The attribute dictionary for the tag.
 
         TODO: how do self-closing tags work?
         TODO: Handling of namespaces?
         """
-        if self.element is None and tag not in self._tags:
-            return
-
-        # Throw away any text that occurred within an element containing
-        # a child. eg. <a>garbage<b>text</b></a>
-        self.text = []
-
-        # Add last element as an ancestor when two start.
-        if self.last_tag_event == 'start':
-            self.parent = self.element
-
-        self.element = Element(tag, attrib)
-
-        if self.parent is not None:
-            self.parent.append(self.element)
-
         if self._debug:
             print 'START', tag
 
-            if not self.tree:
-                self.tree = self.element
+        # Throw away any text that occurred within an element containing
+        # a child. eg. <a>garbage<b>text</b></a>
+        self._text = []
 
-            print tostring(self.tree, pretty_print=True)
+        # Save elements are tags we are interested in or which are
+        # decendents of interesting tags.
+        if self._element is not None or tag in self._tags:
+            parent = self._element
+            element = Element(tag, attrib)
 
-        # Avoid saving text after an end tag.
-        self.last_tag_event = 'start'
+            if parent is not None:
+                parent.append(element)
+
+            self._element = element
+            self._keep_text = True
+
+        if self._debug:
+            if self._tree is None:
+                self._tree = self._element
+
+            if self._tree is not None:
+                print tostring(self._tree, pretty_print=True)
 
     def end(self, tag):
         """
-        The closing tag.
+        Close a tag
         """
-
-        if self.element is None:
-            return
-
-        # Assign text to an element.
-        if self.text:
-            self.element.text = ''.join(self.text)
-            self.text = []  # Probably not needed
-
         if self._debug:
             print 'END', tag
-            print tostring(self.tree, pretty_print=True)
 
-        if self.last_tag_event == 'end':
-            self.element = self.element.getparent()
-            self.parent = self.element.getparent()
+        if self._element is not None:
+            if self._text:
+                self._element.text = ''.join(self._text)
+                self._text = []  # Probably not needed
 
-        if self.parent is None:
-            self.completed_elements.append(self.element)
-            self.element = None
-            self.tree = None
+            if tag in self._tags:
+                self.completed_elements.append(self._element)
+                self._tree = None
 
-            if self._debug:
-                print "********"
+            self._element = self._element.getparent()
 
-        self.last_tag_event = 'end'
+        if self._debug and self._tree is not None and self._text:
+            print tostring(self._tree, pretty_print=True)
+
+        # Avoid saving text that occurs after the end of a tag.
+        # eg. <a><b>text</b>garbage</a>
+        self._keep_text = False
 
     def data(self, text):
         """
-        Text for a tag
+        Text in a tag
         """
-
-        if self.element is None:
-            return
-
-        # Avoid record text that after the end of a tag.
-        # eg. <a><b>text</b>garbage</a>
-        if self.last_tag_event == 'start':
-            self.text.append(text)
-
-    # Avoid defining comment method if we aren't using it.
-    # def comment(self, text):
-    #     pass
+        if self._keep_text:
+            self._text.append(text)
 
     def close(self):
         """
@@ -113,9 +103,14 @@ class LowMemoryTarget(object):
 
 def iterparse(stream, tag, size=1024, **kwargs):
     """
-    Iterativel parse an xml file
+    Iteratively parse an xml file, firing end events for any requested
+    tags
+
+    stream: The XML stream to parse.
+    tag: The iterable of tags to fire events on.
+    size: (optional, 1024) The number of bytes to read at a time.
     """
-    target = LowMemoryTarget(tag, **kwargs)
+    target = MinimalTarget(tags=tag, **kwargs)
     parser = XMLParser(target=target)
 
     raw = stream.read(size)
