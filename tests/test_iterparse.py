@@ -2,10 +2,17 @@ import unittest
 from six import StringIO
 from iterparse.parser import iterparse
 
-import lxml.etree
-
 
 class Iterparse(unittest.TestCase):
+    def assertElement(
+        self, element, name, text=None, num_children=0, num_attrib=0,
+    ):
+        self.assertEqual(element.tag, name)
+        self.assertEqual(element.text, text)
+        self.assertEqual(element.tail, None)
+        self.assertEqual(len(element.getchildren()), num_children)
+        self.assertEqual(len(element.attrib), num_attrib)
+
     def test_basic(self):
         stream = StringIO("""
         <root>
@@ -30,10 +37,20 @@ class Iterparse(unittest.TestCase):
         </root>
         """)
 
-        elements = iterparse(stream, ['wanted'])
+        elements = list(iterparse(stream, ['wanted']))
 
-        for element in elements:
-            lxml.etree.tostring(element, pretty_print=True)
+        self.assertEqual(len(elements), 1)
+
+        element = elements[0]
+        self.assertElement(element, 'wanted', num_children=5)
+        self.assertElement(element[0], 'wanted-0', text='foo', num_attrib=1)
+        self.assertElement(element[1], 'wanted-1', text='foo')
+        self.assertElement(element[2], 'wanted-2', text='foo')
+        self.assertElement(element[3], 'wanted-3', num_children=2)
+        self.assertElement(element[3][0], 'wanted-3a', num_children=1)
+        self.assertElement(element[3][0][0], 'wanted-3aa', text='deep')
+        self.assertElement(element[3][1], 'wanted-3b', text='sup')
+        self.assertElement(element[4], 'wanted-4')
 
 
 if __name__ == '__main__':
