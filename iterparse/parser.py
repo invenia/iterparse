@@ -6,8 +6,9 @@ class LowMemoryTarget(object):
     An XMLParser target that only stores the data you want,
     when you want it.
     """
-    def __init__(self, tags):
+    def __init__(self, tags, debug=False):
         self._tags = frozenset(tags)
+        self._debug = debug
 
         self.element = None
         self.parent = None
@@ -33,8 +34,6 @@ class LowMemoryTarget(object):
         # a child. eg. <a>garbage<b>text</b></a>
         self.text = []
 
-        print 'START', tag
-
         # Add last element as an ancestor when two start.
         if self.last_tag_event == 'start':
             self.parent = self.element
@@ -44,10 +43,13 @@ class LowMemoryTarget(object):
         if self.parent is not None:
             self.parent.append(self.element)
 
-        if not self.tree:
-            self.tree = self.element
+        if self._debug:
+            print 'START', tag
 
-        print tostring(self.tree, pretty_print=True)
+            if not self.tree:
+                self.tree = self.element
+
+            print tostring(self.tree, pretty_print=True)
 
         # Avoid saving text after an end tag.
         self.last_tag_event = 'start'
@@ -60,14 +62,14 @@ class LowMemoryTarget(object):
         if self.element is None:
             return
 
-        print 'END', tag
-
         # Assign text to an element.
         if self.text:
             self.element.text = ''.join(self.text)
             self.text = []  # Probably not needed
 
-        print tostring(self.tree, pretty_print=True)
+        if self._debug:
+            print 'END', tag
+            print tostring(self.tree, pretty_print=True)
 
         if self.last_tag_event == 'end':
             self.element = self.element.getparent()
@@ -77,7 +79,9 @@ class LowMemoryTarget(object):
             self.complete.append(self.element)
             self.element = None
             self.tree = None
-            print "********"
+
+            if self._debug:
+                print "********"
 
         self.last_tag_event = 'end'
 
@@ -111,7 +115,7 @@ class LowMemoryTarget(object):
         Get all the completed elements
         """
         while self.complete:
-            yield 'end', self.complete.pop(0)
+            yield self.complete.pop(0)
 
 
 def iterparse(stream, tag, size=1024):
