@@ -101,7 +101,7 @@ class MinimalTarget(object):
         pass
 
 
-def iterparse(stream, tag, size=1024, **kwargs):
+def iterparse(source, events=('end',), tag=None, **kwargs):
     """
     Iteratively parse an xml file, firing end events for any requested
     tags
@@ -110,10 +110,20 @@ def iterparse(stream, tag, size=1024, **kwargs):
     tag: The iterable of tags to fire events on.
     size: (optional, 1024) The number of bytes to read at a time.
     """
-    target = MinimalTarget(tags=tag, **kwargs)
-    parser = XMLParser(target=target)
+    # Note: We need to remove all kwargs not supported by XMLParser
+    # which but are supported by iterparse: source, events, tag, html,
+    # recover, huge_tree.
+    #
+    # http://lxml.de/api/lxml.etree.XMLParser-class.html
+    # http://lxml.de/api/lxml.etree.iterparse-class.html
 
-    raw = stream.read(size)
+    size = kwargs.pop('size', 1024)
+    debug = kwargs.pop('debug', False)
+
+    target = MinimalTarget(tags=tag, debug=debug)
+    parser = XMLParser(target=target, **kwargs)
+
+    raw = source.read(size)
 
     while raw:
         try:
@@ -125,4 +135,4 @@ def iterparse(stream, tag, size=1024, **kwargs):
             while elements:
                 yield elements.pop(0)
 
-        raw = stream.read(size)
+        raw = source.read(size)

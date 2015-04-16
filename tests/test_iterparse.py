@@ -38,7 +38,7 @@ class Iterparse(unittest.TestCase):
         </root>
         """)
 
-        elements = list(iterparse(stream, ['wanted']))
+        elements = list(iterparse(stream, tag=['wanted']))
 
         self.assertEqual(len(elements), 1)
 
@@ -56,7 +56,7 @@ class Iterparse(unittest.TestCase):
     def test_exception_handling(self):
         stream = BytesIO(b'<a>1</a>2</a>3')
 
-        elements = iterparse(stream, ['a'], debug=True)
+        elements = iterparse(stream, tag=['a'], debug=True)
 
         # We can process the first <a> without issue.
         element = next(elements)
@@ -69,7 +69,7 @@ class Iterparse(unittest.TestCase):
     def test_error_extra_content(self):
         stream = BytesIO(b'<a><b></a></b>')
 
-        elements = iterparse(stream, ['a'])
+        elements = iterparse(stream, tag=['a'])
 
         with self.assertRaises(XMLSyntaxError):
             next(elements)
@@ -77,7 +77,7 @@ class Iterparse(unittest.TestCase):
     def test_error_opening_ending_mismatch(self):
         stream = BytesIO(b'</a>')
 
-        elements = iterparse(stream, ['a'])
+        elements = iterparse(stream, tag=['a'])
 
         with self.assertRaises(XMLSyntaxError):
             next(elements)
@@ -85,7 +85,7 @@ class Iterparse(unittest.TestCase):
     def test_error_document_is_empty(self):
         stream = BytesIO(b'0<a></a>')
 
-        elements = iterparse(stream, ['a'])
+        elements = iterparse(stream, tag=['a'])
 
         with self.assertRaises(XMLSyntaxError):
             next(elements)
@@ -99,7 +99,7 @@ class Iterparse(unittest.TestCase):
         </root>
         """)
 
-        elements = list(iterparse(stream, ['wanted', 'wanted-0']))
+        elements = list(iterparse(stream, tag=['wanted', 'wanted-0']))
 
         self.assertEqual(len(elements), 2)
 
