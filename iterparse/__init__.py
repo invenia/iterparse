@@ -1,6 +1,7 @@
 from collections import namedtuple
+from .parser import iterparse
 
-__all__ = ['__version__', 'version']
+__all__ = ['__version__', 'version', 'iterparse']
 
 version_tuple = namedtuple('version', ['major', 'minor', 'micro'])
 
