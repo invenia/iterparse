@@ -172,8 +172,9 @@ class MinimalTarget(object):
         pass
 
 
-def iterparse(source, events=('end',), tag=None, strip_namespace=False,
-              **kwargs):
+def iterparse(
+    source, events=('end',), tag=None, strip_namespace=False, **kwargs
+):
     """
     Iteratively parse an xml file, firing end events for any requested
     tags
@@ -191,8 +192,9 @@ def iterparse(source, events=('end',), tag=None, strip_namespace=False,
     size = kwargs.pop('size', 1024)
     debug = kwargs.pop('debug', False)
 
-    target = MinimalTarget(tags=tag, strip_namespace=strip_namespace,
-                           debug=debug)
+    target = MinimalTarget(
+        tags=tag, strip_namespace=strip_namespace, debug=debug,
+    )
     parser = XMLParser(target=target, **kwargs)
 
     raw = source.read(size)
