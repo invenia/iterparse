@@ -11,10 +11,14 @@ class MinimalTarget(object):
     tags: The names of tags you would like to store
     """
     def __init__(
-        self, tags, strip_namespace=False, ignore_namespace=False,
+        self, tags=None, strip_namespace=False, ignore_namespace=False,
         debug=False,
     ):
-        self._tags = frozenset(QName(tag) for tag in tags)
+        if tags is None:
+            self._tags = tags
+        else:
+            self._tags = frozenset(QName(tag) for tag in tags)
+
         self._strip_namespace = strip_namespace
         self._ignore_namespace = ignore_namespace
         self._debug = debug
@@ -103,6 +107,9 @@ class MinimalTarget(object):
         """
         Test whether a tag is desired
         """
+        if self._tags is None:
+            return True
+
         if self._ignore_namespace:
             for desired_tag in self._tags:
                 if tag.localname == desired_tag.localname:

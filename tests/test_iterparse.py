@@ -165,6 +165,14 @@ class Iterparse(unittest.TestCase):
         self.assertElement(elements[0], 'a', text='1')
         self.assertElement(elements[1], 'a', text='2')
 
+    def test_tag_none(self):
+        stream = BytesIO(b'<a>1</a>')
+
+        elements = list(iterparse(stream, tag=None))
+
+        self.assertEquals(len(elements), 1)
+        self.assertElement(elements[0], 'a', text='1')
+
 
 if __name__ == '__main__':
     unittest.main()
