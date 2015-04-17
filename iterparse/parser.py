@@ -1,52 +1,5 @@
 from __future__ import print_function
-
-import re
-
-from lxml.etree import Element, XMLParser, tostring
-from six import text_type
-
-
-class Tag(object):
-    """
-    An XML tag
-    """
-    def __init__(self, raw):
-        self._namespace, self._name = re.search(
-            '^(:?\{([^{}]+)\})?([^{}]+)$', raw
-        ).groups()[1:]
-
-    @property
-    def namespace(self):
-        return self._namespace
-
-    @property
-    def name(self):
-        return self._name
-
-    def __eq__(self, other):
-        if isinstance(other, text_type):
-            other = Tag(other)
-
-        if isinstance(other, Tag):
-            return self.name == other.name and (
-                (not self.namespace) or
-                (not other.namespace) or
-                self.namespace == other.namespace
-            )
-
-        return NotImplemented
-
-    def __ne__(self, other):
-        if isinstance(other, (text_type, Tag)):
-            return not (self == other)
-
-        return NotImplemented
-
-    def __repr__(self):
-        return 'Tag({%s}%s)' % (self._namespace or '', self._name)
-
-    def __hash__(self):
-        return hash((self._namespace, self._name))
+from lxml.etree import Element, QName, XMLParser, tostring
 
 
 class MinimalTarget(object):
@@ -57,14 +10,17 @@ class MinimalTarget(object):
 
     tags: The names of tags you would like to store
     """
-    def __init__(self, tags, strip_namespace=False, debug=False):
-        self._tags = frozenset(Tag(tag) for tag in tags)
+    def __init__(
+        self, tags, strip_namespace=False, ignore_namespace=False,
+        debug=False,
+    ):
+        self._tags = frozenset(QName(tag) for tag in tags)
+        self._strip_namespace = strip_namespace
+        self._ignore_namespace = ignore_namespace
         self._debug = debug
 
         self._element = None
         self._text = []
-
-        self._strip = strip_namespace
 
         self._tree = None  # Debug only.
         self.completed_elements = []
@@ -91,20 +47,16 @@ class MinimalTarget(object):
         # a child. eg. <a>garbage<b>text</b></a>
         self._text = []
 
+        if self._ignore_namespace or self._strip_namespace:
+            tag = QName(tag)
+
         # Save elements are tags we are interested in or which are
         # decendents of interesting tags.
-        save_element = self._element is not None
-
-        if not save_element:
-            save_element = self._desired_tag(tag)
-
-        if save_element:
+        if self._element is not None or self._is_desired_tag(tag):
             parent = self._element
 
-            if self._strip:
-                tag = Tag(tag).name
-
-            element = Element(tag, attrib)
+            name = tag.localname if self._strip_namespace else str(tag)
+            element = Element(name, attrib)
 
             if parent is not None:
                 parent.append(element)
@@ -126,12 +78,15 @@ class MinimalTarget(object):
         if self._debug:
             print('END', tag)
 
+        if self._ignore_namespace:
+            tag = QName(tag)
+
         if self._element is not None:
             if self._text:
                 self._element.text = ''.join(self._text)
                 self._text = []  # Probably not needed
 
-            if self._desired_tag(tag):
+            if self._is_desired_tag(tag):
                 self.completed_elements.append(self._element)
                 self._tree = None
 
@@ -144,15 +99,18 @@ class MinimalTarget(object):
         # eg. <a><b>text</b>garbage</a>
         self._keep_text = False
 
-    def _desired_tag(self, tag):
+    def _is_desired_tag(self, tag):
         """
         Test whether a tag is desired
         """
-        wrapped = Tag(tag)
-
-        for desired in self._tags:
-            if wrapped == desired:
-                return True
+        if self._ignore_namespace:
+            for desired_tag in self._tags:
+                if tag.localname == desired_tag.localname:
+                    return True
+        else:
+            for desired_tag in self._tags:
+                if tag == desired_tag:
+                    return True
 
         return False
 
@@ -172,9 +130,7 @@ class MinimalTarget(object):
         pass
 
 
-def iterparse(
-    source, events=('end',), tag=None, strip_namespace=False, **kwargs
-):
+def iterparse(source, events=('end',), tag=None, **kwargs):
     """
     Iteratively parse an xml file, firing end events for any requested
     tags
@@ -190,11 +146,14 @@ def iterparse(
     # http://lxml.de/api/lxml.etree.XMLParser-class.html
     # http://lxml.de/api/lxml.etree.iterparse-class.html
     size = kwargs.pop('size', 1024)
-    debug = kwargs.pop('debug', False)
 
-    target = MinimalTarget(
-        tags=tag, strip_namespace=strip_namespace, debug=debug,
+    target_kwargs = dict(
+        strip_namespace=kwargs.pop('strip_namespace', False),
+        ignore_namespace=kwargs.pop('ignore_namespace', False),
+        debug=kwargs.pop('debug', False),
     )
+
+    target = MinimalTarget(tags=tag, **target_kwargs)
     parser = XMLParser(target=target, **kwargs)
 
     raw = source.read(size)

@@ -114,41 +114,56 @@ class Iterparse(unittest.TestCase):
         self.assertElement(element, 'wanted', num_children=1)
         self.assertElement(element[0], 'wanted-0', text='foo')
 
-    def test_namespacing(self):
+    def test_namespaces(self):
         text = b"""
             <root xmlns:a1="example.com/a1" xmlns:a2="example.com/a2">
-                <a1:a>a1</a1:a>
-                <a2:a>a2</a2:a>
+                <a1:a>1</a1:a>
+                <a2:a>2</a2:a>
             </root>
             """
 
-        a1_a = list(iterparse(BytesIO(text), tag=['{example.com/a1}a']))
+        # Make sure we can filter with namespaces.
+        elements = list(iterparse(BytesIO(text), tag=['{example.com/a1}a']))
 
-        self.assertEquals(len(a1_a), 1)
-        self.assertEquals(a1_a[0].tag, '{example.com/a1}a')
-        self.assertEquals(a1_a[0].text, 'a1')
+        self.assertEquals(len(elements), 1)
+        self.assertElement(elements[0], '{example.com/a1}a', text='1')
 
-        a2_a = list(iterparse(BytesIO(text), tag=['{example.com/a2}a']))
+        elements = list(iterparse(BytesIO(text), tag=['{example.com/a2}a']))
 
-        self.assertEquals(len(a2_a), 1)
-        self.assertEquals(a2_a[0].tag, '{example.com/a2}a')
-        self.assertEquals(a2_a[0].text, 'a2')
+        self.assertEquals(len(elements), 1)
+        self.assertElement(elements[0], '{example.com/a2}a', text='2')
 
-        a_a = list(iterparse(BytesIO(text), tag=['a']))
+        # Make sure that we can filter while ignoring namespaces.
+        elements = list(
+            iterparse(BytesIO(text), tag=['a'], ignore_namespace=True)
+        )
 
-        self.assertEquals(len(a_a), 2)
-        self.assertEquals(a_a[0].tag, '{example.com/a1}a')
-        self.assertEquals(a_a[0].text, 'a1')
-        self.assertEquals(a_a[1].tag, '{example.com/a2}a')
-        self.assertEquals(a_a[1].text, 'a2')
+        self.assertEquals(len(elements), 2)
+        self.assertElement(elements[0], '{example.com/a1}a', text='1')
+        self.assertElement(elements[1], '{example.com/a2}a', text='2')
 
-        a = list(iterparse(BytesIO(text), tag=['a'], strip_namespace=True))
+        # Make sure we can filter with namespaces and strip the result.
+        elements = list(
+            iterparse(
+                BytesIO(text), tag=['{example.com/a1}a'],
+                strip_namespace=True,
+            )
+        )
 
-        self.assertEquals(len(a_a), 2)
-        self.assertEquals(a[0].tag, 'a')
-        self.assertEquals(a[0].text, 'a1')
-        self.assertEquals(a[1].tag, 'a')
-        self.assertEquals(a[1].text, 'a2')
+        self.assertEquals(len(elements), 1)
+        self.assertElement(elements[0], 'a', text='1')
+
+        # Combination of ignoring/striping namespaces.
+        elements = list(
+            iterparse(
+                BytesIO(text), tag=['a'], strip_namespace=True,
+                ignore_namespace=True,
+            )
+        )
+
+        self.assertEquals(len(elements), 2)
+        self.assertElement(elements[0], 'a', text='1')
+        self.assertElement(elements[1], 'a', text='2')
 
 
 if __name__ == '__main__':
